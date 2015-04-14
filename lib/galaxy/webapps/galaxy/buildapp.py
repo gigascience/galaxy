@@ -267,6 +267,9 @@ def populate_api_routes( webapp, app ):
     # visualizations registry generic template renderer
     webapp.add_route( '/visualization/show/:visualization_name', controller='visualization', action='render', visualization_name=None )
 
+    # Output cytoscape-formatted data
+    webapp.mapper.connect('/api/cys/history/{history_id}', action='get_cys_from_history', controller="cytoscape")
+
     # Deprecated in favor of POST /api/workflows with 'workflow' in payload.
     webapp.mapper.connect( 'import_workflow_deprecated',
                            '/api/workflows/upload',
