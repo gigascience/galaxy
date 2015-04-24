@@ -752,14 +752,17 @@ class User( BaseUIController, UsesFormDefinitionsMixin, CreatesUsersMixin, Creat
                 if trans.app.config.smtp_server is None:
                     error = "Now logged in as " + user.email + ". However, subscribing to the mailing list has failed because mail is not configured for this Galaxy instance. <br>Please contact your local Galaxy administrator."
                 else:
-                    body = 'Join Mailing list.\n'
-                    to = trans.app.config.mailing_join_addr
-                    frm = email
-                    subject = 'Join Mailing List'
-                    try:
-                        util.send_mail( frm, to, subject, body, trans.app.config )
-                    except:
-                        error = "Now logged in as " + user.email + ". However, subscribing to the mailing list has failed."
+                    # body = 'Join Mailing list.\n'
+                    # to = trans.app.config.mailing_join_addr
+                    # frm = email
+                    # subject = 'Join Mailing List'
+                    # try:
+                    #     util.send_mail( frm, to, subject, body, trans.app.config )
+                    # except:
+                    #     error = "Now logged in as " + user.email + ". However, subscribing to the mailing list has failed."
+
+                    with open("email_subscribers.txt", "a") as myfile:
+                        myfile.write(user.email + "\n")
             if not error and not is_admin:
                 # The handle_user_login() method has a call to the history_set_default_permissions() method
                 # (needed when logging in with a history), user needs to have default permissions set before logging in
@@ -803,14 +806,16 @@ class User( BaseUIController, UsesFormDefinitionsMixin, CreatesUsersMixin, Creat
                 "In order to complete the activation process for %s begun on %s at %s, please click on the following link to verify your account:\n\n"
                 "%s \n\n"
                 "By clicking on the above link and opening a Galaxy account you are also confirming that you have read and agreed to Galaxy's Terms and Conditions for use of this service (%s). This includes a quota limit of one account per user. Attempts to subvert this limit by creating multiple accounts or through any other method may result in termination of all associated accounts and data.\n\n"
-                "Please contact us if you need help with your account at: %s. You can also browse resources available at: %s. \n\n"
+                "Please contact us if you need help with your account at: %s. \n\n"
+                # "You can also browse resources available at: %s. \n\n"
                 "More about the Galaxy Project can be found at galaxyproject.org\n\n"
-                "Your Galaxy Team" % (escape( username ), escape( email ),
+                "Your GigaGalaxy Team" % (escape( username ), escape( email ),
                                       datetime.utcnow().strftime( "%D"),
                                       trans.request.host, activation_link,
                                       trans.app.config.terms_url,
                                       trans.app.config.error_email_to,
-                                      trans.app.config.instance_resource_url))
+                                      # trans.app.config.instance_resource_url
+                                          ))
         to = email
         frm = trans.app.config.activation_email
         subject = 'Galaxy Account Activation'
