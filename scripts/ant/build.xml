@@ -14,7 +14,7 @@
         <available file="${toolshed.dir}/tool_shed_webapp.pid"  property="tshed.pid.found"/>
     </target>
 
-    <target name="fail_tshed_running" depends="check_tshed_running">
+    <target name="fail_tshed_running" depends="check_tshed_running" if="tshed.pid.found">
         <fail message="Toolshed is still running. Stop toolshed process"/>
     </target>
 
