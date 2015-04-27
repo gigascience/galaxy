@@ -1,0 +1,63 @@
+<project name="gigatoolshed" basedir=".">
+    <description>
+        Utilities for GigaToolshed
+    </description>
+    <!-- Set global properties for this build -->
+    <property file="build.properties"/>
+    <property name="galaxy.dir" location="../../galaxy"/>
+    <property name="toolshed.dir" location="../../galaxy"/>
+    <property name="hgweb_config.dir" location="${hgweb_config.dir}"/>
+    <property name="hg_repo.dir" location="${toolshed.dir}/database/community_files"/>
+    <property name="ant_lib.dir" location="./lib"/>
+
+    <target name="check_tshed_running">
+        <available file="${toolshed.dir}/tool_shed_webapp.pid"  property="tshed.pid.found"/>
+    </target>
+
+    <target name="fail_tshed_running" depends="check_tshed_running">
+        <fail message="Toolshed is still running. Stop toolshed process"/>
+    </target>
+
+    <!-- Delete the current contents of the toolshed -->
+    <target name="clean_tshed" description="Clean toolshed" depends="fail_tshed_running">
+        <!-- Delete all files of hgweb_config.dir, but not hgweb_config.dir itself -->
+        <delete>
+            <fileset dir="${hgweb_config.dir}" includes="*"/>
+        </delete>
+        <!-- Create new hgweb.config -->
+        <touch file="${hgweb_config.dir}/hgweb.config"/>
+        <!-- Delete all hg repos in Toolshed -->
+        <!-- Delete all files of hgweb_config.dir, but not hgweb_config.dir itself -->
+        <delete>
+            <fileset dir="${hgweb_config.dir}" includes="*"/>
+        </delete>
+        <!-- Delete all mercurial repos in toolshed -->
+        <delete>
+            <fileset dir="${hg_repo.dir}" includes="*"/>
+        </delete>
+    </target>
+
+    <target name="dropdb" description="Drop toolshed database in postgresql" depends="clean_tshed">
+        <echo message="Deleting toolshed database"/>
+        <sql driver="org.postgresql.Driver"
+             classpath="${ant_lib.dir}/postgresql-9.2-1002.jdbc4.jar"
+             url="${template1.dburl}"
+             userid="${db.user}"
+             password="${db.password}"
+             autocommit="true">
+            DROP DATABASE toolshed;
+        </sql>
+    </target>
+
+    <target name="createdb" depends="dropdb" description="Create toolshed in postgresql">
+        <echo message="Creating new empty toolshed database"/>
+        <sql driver="org.postgresql.Driver"
+             classpath="${ant_lib.dir}/postgresql-9.2-1002.jdbc4.jar"
+             url="${template1.dburl}"
+             userid="${db.user}"
+             password="${db.password}"
+             autocommit="true">
+            CREATE DATABASE toolshed;
+        </sql>
+    </target>
+</project>
