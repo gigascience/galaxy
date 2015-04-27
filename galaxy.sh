@@ -20,6 +20,18 @@
 GALAXY_RUN="./run.sh"
 GALAXY_USER=@user@
 
+if [ ! -f ./config/galaxy.ini ]; then
+    echo "File config/galaxy.ini not found!"
+fi
+
+if [ ! -f ./config/tool_shed.ini ]; then
+    echo "File config/tool_shed.ini not found!"
+fi
+
+if [ ! -f ./config/tool_sheds_conf.xml ]; then
+    echo "File config/tool_sheds_conf.xml not found!"
+fi
+
 case "$1" in
     start)
         echo "Starting galaxy..."
