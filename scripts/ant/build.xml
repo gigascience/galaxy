@@ -3,17 +3,22 @@
         Utilities for GigaToolshed
     </description>
     <!-- Set global properties for this build -->
-    <property file="build.properties"/>
-    <property name="galaxy.dir" location="../../galaxy"/>
-    <property name="toolshed.dir" location="../../galaxy"/>
-    <property name="hgweb_config.dir" location="${hgweb_config.dir}"/>
-    <property name="hg_repo.dir" location="${toolshed.dir}/database/community_files"/>
-    <property name="ant_lib.dir" location="./lib"/>
+    <property name="galaxy.dir" location="."/>
+    <property name="toolshed.dir" location="."/>
+    <property file="${galaxy.dir}/scripts/ant/build.properties"/>
+    <property name="ant_lib.dir" location="${galaxy.dir}/scripts/ant/lib"/>
+    <property name="hgweb_config.dir" location="${hgweb.config.dir}"/>
+    <property name="hg_repo.dir" location="${toolshed.repos.dir}"/>
 
     <target name="check_tshed_running">
         <available file="${toolshed.dir}/tool_shed_webapp.pid"  property="tshed.pid.found"/>
     </target>
 
+    <target name="fail_tshed_running" depends="check_tshed_running" if="tshed.pid.found">
+        <fail message="Toolshed is still running. Stop toolshed process"/>
+    </target>
+
+    <!-- Delete the current contents of the toolshed -->
     <target name="fail_tshed_running" depends="check_tshed_running" if="tshed.pid.found">
         <fail message="Toolshed is still running. Stop toolshed process"/>
     </target>
@@ -27,14 +32,9 @@
         <!-- Create new hgweb.config -->
         <touch file="${hgweb_config.dir}/hgweb.config"/>
         <!-- Delete all hg repos in Toolshed -->
-        <!-- Delete all files of hgweb_config.dir, but not hgweb_config.dir itself -->
-        <delete>
-            <fileset dir="${hgweb_config.dir}" includes="*"/>
-        </delete>
-        <!-- Delete all mercurial repos in toolshed -->
-        <delete>
-            <fileset dir="${hg_repo.dir}" includes="*"/>
-        </delete>
+        <delete dir="${hg_repo.dir}"/>
+        <!-- Create new hg repos directory -->
+        <mkdir dir="${hg_repo.dir}"/>
     </target>
 
     <target name="dropdb" description="Drop toolshed database in postgresql" depends="clean_tshed">
