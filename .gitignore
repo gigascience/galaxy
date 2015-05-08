@@ -4,6 +4,7 @@ eggs
 scripts/scramble/build
 scripts/scramble/lib
 scripts/scramble/archives
+scripts/ant/build.properties
 
 # Python virtualenv
 .venv
