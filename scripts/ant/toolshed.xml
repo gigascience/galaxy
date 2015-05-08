@@ -46,7 +46,7 @@
         </sql>
     </target>
 
-    <target name="createdb" depends="dropdb" description="Create toolshed in postgresql">
+    <target name="createdb" depends="dropdb" description="Create toolshed database in postgresql">
         <echo message="Creating new empty toolshed database"/>
         <sql driver="org.postgresql.Driver"
              classpath="${ant_lib.dir}/postgresql-9.2-1002.jdbc4.jar"
