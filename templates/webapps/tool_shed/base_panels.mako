@@ -1,7 +1,7 @@
 <%inherit file="/base/base_panels.mako"/>
 
 ## Default title
-<%def name="title()">Galaxy Tool Shed</%def>
+<%def name="title()">GigaToolShed</%def>
 
 <%def name="javascripts()">
     ${parent.javascripts()}
@@ -141,7 +141,7 @@
     <div class="navbar-brand">
         <a href="${h.url_for( app.config.get( 'logo_url', '/' ) )}">
         <img style="margin-left: 0.35em;" border="0" src="${h.url_for('/static/images/galaxyIcon_noText.png')}">
-        Galaxy Tool Shed
+        GigaToolShed
         %if app.config.brand:
             <span>/ ${app.config.brand}</span>
         %endif
