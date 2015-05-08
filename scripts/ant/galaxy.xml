@@ -1,0 +1,76 @@
+<project name="gigagalaxy" basedir=".">
+    <description>
+        Utilities for GigaGalaxy
+    </description>
+    <!-- Set global properties for this build -->
+    <property name="galaxy.dir" location="../.."/>
+    <property name="toolshed.dir" location="../.."/>
+    <property name="file_path" location="${galaxy.dir}/database/files"/>
+    <property name="new_file_path" location="${galaxy.dir}/database/tmp"/>
+    <property name="tool_data_path" location="${galaxy.dir}/tool-data"/>
+    <property name="shed_tool_data_path" location="${galaxy.dir}/tool-data"/>
+    <property name="job_working_directory" location="${galaxy.dir}/database/job_working_directory"/>
+    <property file="build.properties"/>
+    <property name="ant_lib.dir" location="./lib"/>
+
+    <target name="check_galaxy_running">
+        <available file="${galaxy.dir}/paster.pid"  property="paster.pid.found"/>
+    </target>
+
+    <target name="fail_galaxy_running" depends="check_galaxy_running" if="paster.pid.found">
+        <fail message="Galaxy is still running. Stop Galaxy process"/>
+    </target>
+
+    <!-- Delete the current contents of galaxy -->
+    <target name="clean_galaxy" description="Clean galaxy" depends="fail_galaxy_running">
+        <delete>
+            <fileset dir="${file_path}" includes="*"/>
+        </delete>
+        <delete>
+            <fileset dir="${new_file_path}" includes="*"/>
+        </delete>
+        <delete>
+            <fileset dir="${tool.dependency.dir}" includes="*"/>
+        </delete>
+        <delete>
+            <fileset dir="${tool_data_path}" includes="*"/>
+        </delete>
+        <delete file="${galaxy.dir}/config/datatypes_conf.xml"/>
+
+        <echo message="Create new conf files..."/>
+        <copy file="${galaxy.dir}/config/tool_conf.xml.main"
+              overwrite="true" tofile="${galaxy.dir}/config/tool_conf.xml"/>
+        <copy file="${galaxy.dir}/config/shed_tool_conf.xml.sample"
+              overwrite="true" tofile="${galaxy.dir}/config/shed_tool_conf.xml"/>
+        <copy file="${galaxy.dir}/config/tool_data_table_conf.xml.sample"
+              overwrite="true" tofile="${galaxy.dir}/config/tool_data_table_conf.xml"/>
+        <copy file="${galaxy.dir}/config/shed_tool_data_table_conf.xml.sample"
+              overwrite="true" tofile="${galaxy.dir}/config/shed_tool_data_table_conf.xml"/>
+        <copy file="${galaxy.dir}/config/datatypes_conf.xml.sample"
+              overwrite="true" tofile="${galaxy.dir}/config/datatypes_conf.xmlt"/>
+    </target>
+
+    <target name="dropdb" description="Drop galaxy database in postgresql" depends="clean_galaxy">
+        <echo message="Deleting galaxy database"/>
+        <sql driver="org.postgresql.Driver"
+             classpath="${ant_lib.dir}/postgresql-9.2-1002.jdbc4.jar"
+             url="${template1.dburl}"
+             userid="${db.user}"
+             password="${db.password}"
+             autocommit="true">
+            DROP DATABASE galaxydb;
+        </sql>
+    </target>
+
+    <target name="createdb" depends="dropdb" description="Create galaxy database in postgresql">
+        <echo message="Creating new empty galaxy database"/>
+        <sql driver="org.postgresql.Driver"
+             classpath="${ant_lib.dir}/postgresql-9.2-1002.jdbc4.jar"
+             url="${template1.dburl}"
+             userid="${db.user}"
+             password="${db.password}"
+             autocommit="true">
+            CREATE DATABASE galaxydb;
+        </sql>
+    </target>
+</project>
