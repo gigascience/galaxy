@@ -140,7 +140,11 @@
     ## Logo, layered over tabs to be clickable
     <div class="navbar-brand">
         <a href="${h.url_for( app.config.get( 'logo_url', '/' ) )}">
+<<<<<<< HEAD
         <img style="margin-left: 0.35em;" border="0" src="${h.url_for('/static/images/galaxyIcon_noText.png')}">
+=======
+        <img border="0" src="${h.url_for('/static/images/galaxyIcon_noText.png')}">
+>>>>>>> 8e241bae76213f97da3f240c6b3266ee2593c51a
         GigaToolShed
         %if app.config.brand:
             <span>/ ${app.config.brand}</span>
