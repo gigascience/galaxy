@@ -1,0 +1,161 @@
+<!DOCTYPE HTML>
+<html lang="en">
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <link rel="stylesheet" href="style/base.css" type="text/css" />
+    <style type="text/css">
+        /* set border-box so that percents can be used for width, padding, etc (personal preference) */
+        .cycle-slideshow, .cycle-slideshow * { -webkit-box-sizing: border-box; -moz-box-sizing: border-box; box-sizing: border-box; }
+        .cycle-slideshow { width: 45%; min-width: 200px; max-width: 500px; margin: 10px auto; padding: 0; position: relative;
+            /*background: url(/static/welcome_img/spinner.gif) 50% 50% no-repeat;*/
+        }
+        /* in case script does not load */
+        .cycle-slideshow img:first-child {
+            position: static; z-index: 100;
+        }
+        /* pager */
+        .cycle-galaxy-pager {
+            text-align: center; width: 100%; z-index: 500;  top: 10px; overflow: hidden;
+        }
+        .cycle-galaxy-pager span {
+            font-family: arial; font-size: 50px; width: 16px; height: 30px; line-height: 60%;
+            display: inline-block; color: #ddd; cursor: pointer;
+        }
+        .cycle-galaxy-pager span.cycle-pager-active { color: #D69746;}
+        .cycle-galaxy-pager > * { cursor: pointer;}
+
+        /* display paused text on top of paused slideshow */
+        .cycle-paused:after {
+            content: '||'; color: white; background: black; padding: 10px;
+            z-index: 500; position: absolute; bottom: 3px; right: 3px;
+            border-radius: 10px;
+        }
+        #toggleHelp:hover {
+            cursor: pointer;
+        }
+
+        #logos img {
+            max-width: 100%;
+        }
+</style>
+
+<script type="text/javascript" src="/static/welcome/jquery-1.11.3.min.js"></script>
+<script type="text/javascript" src="/static/welcome/jquery.cycle2.min.js"></script>
+<script type="text/javascript">
+    $(document).ready(function() {
+        $('img[delayedsrc]').each(function(){
+            $(this).attr('src', $(this).attr('delayedsrc'));
+            $(this).height(200);
+            $(this).width(300);
+        });
+        $( "#toggleHelp" ).click(function() {
+            top.window.jQuery( top.document ).find( '.dropdown' ).children( 'a:contains("Help"):visible' ).click()
+        });
+    });
+
+
+</script>
+</head>
+
+<body>
+    <div class="container">
+        <div class="row" align="center">
+            <p class="lead" style="margin-top: 1em; margin-bottom: 2em;">
+                <b>GigaGalaxy</b> hosts tools and data analyses from papers published in
+                <i><a href="http://www.gigasciencejournal.com/">GigaScience</a></i>.
+            </p>
+        </div>
+
+        <div class="row">
+
+            <div class="col-sm-6">
+
+                <div class="panel panel-default" style="border-color: #e8e8e8; max-width: 520px; margin-right: auto; margin-left: auto;">
+
+                    <div class="hidden-sm hidden-xs" style="height: 71px;"></div>
+
+                    <div id="cycle_box">
+                        <div align="center"
+                             class="cycle-slideshow composite-example"
+                             data-cycle-fx="scrollHorz"
+                             data-cycle-slides="> a"
+                             data-cycle-timeout="10000"
+                             data-cycle-random="true"
+                             data-cycle-pager=".cycle-galaxy-pager"
+                             data-cycle-pause-on-hover="true"
+                             data-cycle-log="false"
+                             style="width: 300px"
+                             >
+                            <a target="_blank" href="http://www.gigasciencejournal.com/" onclick="top.window.ga('send', 'event', 'link', 'click', 'cycle_gxycast1');"> <img src='#' delayedsrc="/static/welcome/2014_01_biodata_mining_gigascience_widget_cfp_2.png" width="300" height="207" alt="GigaScience journal"></a>
+                            <a target="_blank" href="http://gigadb.org/" onclick="top.window.ga('send', 'event', 'link', 'click', 'cycle_gxycast1');"> <img src='#' delayedsrc="/static/welcome/2013-07giga-db.png" width="300" height="207" alt="GigaDB database"></a>
+                            <a target="_blank" href="http://www.gigasciencejournal.com/series/Galaxy" onclick="top.window.ga('send', 'event', 'link', 'click', 'cycle_gxycast1');"> <img src='#' delayedsrc="/static/welcome/2014_02_giga_galaxy_v2.png" width="300" height="207" alt="Galaxy papers"></a>
+
+                        </div>
+                        <div class="cycle-galaxy-pager"></div>
+                    </div>
+
+                    <div class="hidden-sm hidden-xs" style="height: 72px;"></div>
+
+                </div>
+
+            </div>
+
+            <div class="col-sm-6 text-center">
+
+                <div id="twitter_timeline" style="height:400px;">
+                    <a class="twitter-timeline" data-dnt="true" height="400" href="https://twitter.com/gigascience" data-widget-id="385649284785266688">Tweets by @GigaScience</a>
+                    <script>!function(d,s,id){var js,fjs=d.getElementsByTagName(s)[0],p=/^http:/.test(d.location)?'http':'https';if(!d.getElementById(id)){js=d.createElement(s);js.id=id;js.src=p+"://platform.twitter.com/widgets.js";fjs.parentNode.insertBefore(js,fjs);}}(document,"script","twitter-wjs");</script>
+                </div>
+
+            </div>
+
+        </div>
+
+        <div style="height: 4em"></div>
+
+        <div class="row" id="logos">
+
+            <div class="col-sm-6 col-sm-push-6">
+
+                <div class="row" style="min-height: 100px">
+                    <div class="col-xs-6 text-center"><a href="http://www.cuhk.edu.hk/cbiit/" target="_blank"><img src="./welcome/cuhk_logo.jpg"></a></div>
+                    <div class="col-xs-6 text-center"><a href="http://www.gigasciencejournal.com/" target="_blank"><img src="./welcome/gigasciencelogo.jpg"></a></div>
+                </div>
+                <p>GigaGalaxy is a collaboration between GigaScience and the CUHK-BGI Innovation Institute of Trans-omics at the Chinese University of Hong Kong</p>
+            </div>
+
+
+            <div class="col-sm-6 col-sm-pull-6">
+
+                <div class="row" style="min-height: 100px">
+                    <div class="col-xs-6 text-center"><img src="./welcome/bgi_logo.png" alt="BGI"></div>
+                    <div class="col-xs-6 text-center"><img src="./welcome/chinagenbank.png" alt="BGI"></div>
+                </div>
+                <p></p>
+
+            	<p>GigaScience and GigaGalaxy is funded by BGI and China National Genbank</p>
+
+            </div>
+
+        </div>
+
+        <div style="height: 4em"></div>
+
+        <div class="row" align="center">
+            <div class="col-md-12">
+
+                <hr/>
+
+                <p>We are grateful to <a target="_blank" class="reference" href="http://galaxyproject.org/">The Galaxy Project</a> which is used by GigaGalaxy.</p>
+
+                <p style="font-size: 90%;">This is a free, public, internet accessible resource. Data transfer and data storage are not encrypted. Data and results produced on GigaGalaxy may be removed without warning due to storage space limitations.</p>
+
+                <p class="text-center"><small>Galaxy version 15.05</small></p>
+
+            </div>
+        </div>
+
+    </div>
+
+</body>
+</html>
