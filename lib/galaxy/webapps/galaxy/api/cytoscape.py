@@ -47,6 +47,56 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         self.hda_manager = hdas.HDAManager( app )
 
     @expose_api_raw
+    def get_cys_from_workflow(self, trans, workflow_id, **kwds):
+        """
+        Generate cytoscape output for a workflow given a workflow id.
+        """
+        cy_workflow = Workflow(workflow_id)
+        input_count = 0
+        edge_count = 0
+        step_id_node_id_dict = {}
+        workflow_id = self.decode_id( workflow_id )
+        query = trans.sa_session.query( trans.app.model.Workflow )
+        workflow = query.get( workflow_id )
+        if workflow is None:
+            raise exceptions.ObjectNotFound( "No such workflow found." )
+        for step in workflow.steps:
+            # Create data nodes
+            if step.type == 'data_input':
+                data_node_id = "n" + str(input_count)
+                datanode = DataNode(data_node_id, 0, "data_input", "data_input", 0, ["output"])
+                cy_workflow.nodes.append(datanode)
+                input_count += 1
+                step_id_node_id_dict[step.id] = data_node_id
+            else:
+                # Create tool nodes
+                tool = self.app.toolbox.get_tool( step.tool_id )
+                tool_node_id = "n" + str(input_count)
+                toolnode = ToolNode(tool_node_id, step.tool_id, tool.name, "tool", None, step.tool_inputs, step.tool_inputs, None)
+                cy_workflow.nodes.append(toolnode)
+                input_count += 1
+                step_id_node_id_dict[step.id] = tool_node_id
+                # Create edges
+                for input_connection in step.input_connections:
+                    start_step_num = input_connection.output_step_id
+                    print "Source step number: ", start_step_num
+                    start_step_num_output_port = input_connection.output_name
+                    print "Source step output port name: ", start_step_num_output_port
+                    output_port = input_connection.input_name
+                    print "output port is: %s for step: %s" % (output_port, step)
+                    edge = Edge('e' + str(edge_count),
+                        step_id_node_id_dict[input_connection.output_step_id],
+                        input_connection.output_name,
+                        tool_node_id,
+                        input_connection.input_name,
+                        None)
+                    cy_workflow.edges.append(edge)
+                    edge_count += 1
+
+        cy_workflow = cy_workflow.to_json()
+        return cy_workflow
+
+    @expose_api_raw
     def get_cys_from_history(self, trans, history_id, job_ids=None, dataset_ids=None, **kwds):
         """
         Generate cytoscape output for a workflow extracted from a given history.
@@ -70,7 +120,7 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         dataset_ids = []
         # Find each job, for security we (implicately) check that they are
         # associated with a job in the current history.
-        history = self.history_manager.get_accessible( trans, decoded_history_id, trans.user )
+        history = self.history_manager.get_accessible( decoded_history_id, trans.user,  current_history=trans.history )
         jobs, warnings = summarize( trans, history )
         print "jobs from summarize:", jobs.keys()
         print "Jobs: ", jobs
@@ -310,11 +360,11 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
             # Find source node id for edge by matching the input step
             # to steps in the workflow steps list
             source_node_id = None
-            for node_id, theStep in steps_by_node_id.iteritems():
-                if conn.output_step == theStep:
-                    source_node_id = node_id
-                    print "Matching node_id", node_id
-                    print "Matching step", theStep
+            # for node_id, theStep in steps_by_node_id.iteritems():
+            #     if conn.output_step == theStep:
+            #         source_node_id = node_id
+            #         print "Matching node_id", node_id
+            #         print "Matching step", theStep
 
             print "job tool_id:", job.tool_id
             job_inputs = job.input_datasets
@@ -332,9 +382,9 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
 
             edge = Edge('e' + str(edge_count),
                         source_node_id,
-                        conn.output_name,
+                        "output_name",
                         tool_node_id,
-                        conn.input_name,
+                        "input_name",
                         edge_dataset_id)
             cy_workflow.edges.append(edge)
             edge_count += 1
