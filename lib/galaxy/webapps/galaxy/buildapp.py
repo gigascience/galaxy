@@ -269,6 +269,7 @@ def populate_api_routes( webapp, app ):
 
     # Output cytoscape-formatted data
     webapp.mapper.connect('/api/cys/history/{history_id}', action='get_cys_from_history', controller="cytoscape")
+    webapp.mapper.connect('/api/cys/workflow/{workflow_id}', action='get_cys_from_workflow', controller="cytoscape")
 
     # Deprecated in favor of POST /api/workflows with 'workflow' in payload.
     webapp.mapper.connect( 'import_workflow_deprecated',
