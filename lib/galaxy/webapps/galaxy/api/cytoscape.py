@@ -142,6 +142,13 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
             for output_dataset in job.output_datasets:
                 output_dataset_id_job_id_dict[output_dataset.dataset.dataset.id] = job.id
         print "job_id_output_dataset_id_dict", output_dataset_id_job_id_dict
+        # Array of dataset ids which are inputs
+        input_dataset_ids = []
+        for job in jobs:
+            for input_dataset in job.input_datasets:
+                input_dataset_ids.append(input_dataset.dataset.dataset.id)
+        print "input_dataset_ids:", input_dataset_ids
+
 
         # Create data and tool nodes
         input_count = 0
@@ -230,6 +237,41 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                         cy_workflow.edges.append(edge)
                         edge_count += 1
 
+        # Create workflow output nodes
+        # Find all jobs with output datasets that do not act as input
+        for job in jobs:
+            for output_dataset in job.output_datasets:
+                if output_dataset.dataset.dataset.id not in input_dataset_ids:
+                    print "Dataset id:", output_dataset.dataset.dataset.id, "does not act as an input dataset!!!"
+                    # These output datasets of these jobs are output data nodes
+                    print "#### Workflow output node ####"
+                    output_data_node_id = "n" + str(input_count)
+                    datanode = DataNode(output_data_node_id,
+                                        output_dataset.dataset.dataset.id,
+                                        "data_output",
+                                        "data_output",
+                                        "input_port_name",
+                                        None)
+                    cy_workflow.nodes.append(datanode)
+                    input_count += 1
+
+                    # Create edge
+                    # Get job which has an output for the above dataset id
+                    source_job_id = output_dataset_id_job_id_dict[output_dataset.dataset.dataset.id]
+                    print "source_job_id:", source_job_id
+                    # Get node id for above source job id
+                    source_node_id = job_id_node_id_dict[source_job_id]
+                    print "source_node_id:", source_node_id
+                    # Create edge
+                    edge = Edge('e' + str(edge_count),
+                            source_node_id,
+                            output_dataset.name,
+                            output_data_node_id,
+                            input_dataset.name,
+                            output_dataset.dataset.dataset.id)
+                    cy_workflow.edges.append(edge)
+                    edge_count += 1
+
         cy_workflow = cy_workflow.to_json()
         return cy_workflow
 
@@ -263,7 +305,7 @@ class Workflow:
                                                      ('name', node.name),
                                                      ('dataset_id', str(node.dataset_id)),
                                                      ('color', '#FCF8E3'),
-                                                     ('output_ports', node.output_ports)])
+                                                     ('input_ports', node.input_ports)])
             else:
                 node_data = collections.OrderedDict([('id', node.id),
                                                      ('name', node.name),
