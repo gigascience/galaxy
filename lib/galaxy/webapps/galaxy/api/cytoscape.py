@@ -101,14 +101,14 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         """
         Generate cytoscape output for a workflow extracted from a given history.
 
-        job_ids are the job ids associated with tools to be included in the cytoscape output.
-        A list of job_ids parameter aren't not really required because they can be obtained
-        for a given history using get_job_dict.
+        job_ids are the job ids associated with tools to be included in the
+        cytoscape output. A list of job_ids are not really required because
+        they can be obtained for a given history using get_job_dict.
         """
         print "####################################"
         print "#### Working on history", history_id
         print "####################################"
-
+        # Get hold of jobs linked to the history_id
         decoded_history_id = None
         if history_id is None:
             id = trans.history.id
@@ -117,278 +117,120 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
             decoded_history_id = trans.security.decode_id(history_id)
             print "trans.security.decode_id: ", decoded_history_id
 
-        dataset_ids = []
-        # Find each job, for security we (implicately) check that they are
-        # associated with a job in the current history.
-        history = self.history_manager.get_accessible( decoded_history_id, trans.user,  current_history=trans.history )
-        jobs, warnings = summarize( trans, history )
-        print "jobs from summarize:", jobs.keys()
-        print "Jobs: ", jobs
-        jobs_by_job_id = dict((job.id, job) for job in jobs.keys())
-        print "jobs_by_job_id:", jobs_by_job_id
-        print "history_id:", history_id, "is linked to job_ids:", jobs_by_job_id.keys()
-        job_ids = jobs_by_job_id.keys()
+        history = self.history_manager.get_accessible( decoded_history_id, trans.user )
+        print "history:", history.to_dict()
+        print "history active contents:", history.active_datasets
+        jobs = []
+        for hda in history.active_datasets:
+            print "hda:", hda.to_dict()
+            # Get job_to_output_dataset associations for the HDA
+            print "job_associations:", hda.creating_job_associations
+            # Get the job from the job_to_output_dataset association
+            for job_to_output_dataset_association in hda.creating_job_associations:
+                job = job_to_output_dataset_association.job
+                print "job:", job.to_dict()
+                jobs.append(job)
 
-        # Remove jobs that are data upload tasks
-        print "################################################"
-        print "#### Remove jobs that are data upload tasks ####"
-        print "################################################"
-        for job_id in job_ids:
-            # Get the job object
-            job = jobs_by_job_id[job_id]
-            # Get tool and its parameters for the job
-            tool = trans.app.toolbox.get_tool(job.tool_id)
-            # Do not add tools which require user interaction into cytoscape output, the workflow
-            # cannot run because of the user interaction. job_ids containing jobs that involve user
-            # interactivity cannot be included in the extracted workflow. Their data output is
-            # treated as an input dataset
-            if tool.name == "Upload File":
-                # Get output of this tool as an input dataset
-                print "Upload job is: ", job
-                # print "Output for data upload job:", job.get_output_datasets()
-                for assoc in job.output_datasets:
-                    print "job_to_output_data_association:", assoc
-                    print "job_to_output_data_association name:", assoc.name
-                    hda = assoc.dataset
-                    print "Output dataset id is:", hda.dataset_id
-                    print "Output hid is:", hda.hid
-                    # Add to dataset_ids
-                    dataset_ids.append(hda.hid)
-                print "Removing job_id", job_id, "from cytoscape output since it is a data upload job"
-                job_ids.remove(job_id)
-
-        print "#################################"
-        print "#### Create cytoscape output ####"
-        print "#################################"
-        dataset_collection_ids = None
-        cy_workflow = self.extract_cys_nodes(trans, history_id=history_id, history=history, job_ids=job_ids, dataset_ids=dataset_ids, dataset_collection_ids=dataset_collection_ids)
-        cy_wf = cy_workflow.to_json()
-        # print cy_wf
-        return cy_wf
-
-    def extract_cys_nodes(self, trans, history_id=None, history=None, job_ids=None, dataset_ids=None, dataset_collection_ids=None):
-        # Ensure job_ids and dataset_ids are lists (possibly empty)
-        if job_ids is None:
-            job_ids = []
-        elif type(job_ids) is not list:
-            job_ids = [job_ids]
-        if dataset_ids is None:
-            dataset_ids = []
-        elif type(dataset_ids) is not list:
-            dataset_ids = [dataset_ids]
-        if dataset_collection_ids is None:
-            dataset_collection_ids = []
-        elif type(dataset_collection_ids) is not list:
-            dataset_collection_ids = [ dataset_collection_ids]
-
-        # Convert both sets of ids to integers
-        job_ids = [ int( id ) for id in job_ids ]
-        dataset_ids = [ int( id ) for id in dataset_ids ]
-        dataset_collection_ids = [ int( id ) for id in dataset_collection_ids ]
-
-        # Find each job, for security we (implicately) check that they are
-        # associated with a job in the current history.
-        summary = WorkflowSummary( trans, history )
-        jobs = summary.jobs
-        jobs_by_id = dict( ( job.id, job ) for job in jobs.keys() )
-
-        print "history in extract_cys_nodes:", history
-        print "history_id in extract_cys_nodes:", history_id
-        print "summary in extract_cys_nodes:", summary
-        print "jobs in extract_cys_nodes:", jobs
-        print "jobs size:", jobs.__len__()
-        print "jobs_by_id in extract_cys_nodes:", jobs_by_id
-        print "jobs_by_id size:", jobs_by_id.__len__()
-        if jobs.__len__() != jobs_by_id.__len__():
-            print "Size of jobs_by_id does not equal size of jobs!"
-
-        steps = []
-        steps_by_job_id = {}
-        hid_to_output_pair = {}
-
-        #For cytoscape output
-        steps_by_node_id = {}
-
-        # For creating cytoscape object
+        # Create cytoscape data
         cy_workflow = Workflow(history_id)
+
+        # Dictionary to hold job_id:node_id
+        job_id_node_id_dict = {}
+        # Dictionary to hold job_id:output_dataset_id
+        output_dataset_id_job_id_dict = {}
+        for job in jobs:
+            for output_dataset in job.output_datasets:
+                output_dataset_id_job_id_dict[output_dataset.dataset.dataset.id] = job.id
+        print "job_id_output_dataset_id_dict", output_dataset_id_job_id_dict
+
+        # Create data and tool nodes
         input_count = 0
         edge_count = 0
-
-        # Input dataset steps
-        for hid in dataset_ids:
-            step = model.WorkflowStep()
-            step.type = 'data_input'
-            step.tool_inputs = dict(name="Input Dataset")
-            hid_to_output_pair[hid] = (step, 'output')
-            steps.append(step)
-            print "Data input step:", step
-
-            print "############################"
-            print "#### Creating data node ####"
-            print "############################"
-            print "Order index (node id): ", step.id
-            print "Step id (dataset_id): ", hid
-            # Create data nodes for cytoscape output
-            node_id = "n" + str(input_count)
-            datanode = DataNode(node_id,
-                                hid,
-                                "data_input",
-                                "data_input",
-                                None,
-                                ["output"])
-            cy_workflow.nodes.append(datanode)
-            steps_by_node_id[node_id] = step
-            input_count += 1
-
-        for hid in dataset_collection_ids:
-            step = model.WorkflowStep()
-            step.type = 'data_collection_input'
-            if hid not in summary.collection_types:
-                raise exceptions.RequestParameterInvalidException( "hid %s does not appear to be a collection" % hid )
-            collection_type = summary.collection_types[ hid ]
-            step.tool_inputs = dict( name="Input Dataset Collection", collection_type=collection_type )
-            hid_to_output_pair[ hid ] = ( step, 'output' )
-            steps.append( step )
-
-        # Tool steps
-        for job_id in job_ids:
-            print "############################"
-            print "#### Creating tool node ####"
-            print "############################"
-
-            print "job_id is:", job_id
-            print "jobs_by_id:", jobs_by_id
-            if job_id not in jobs_by_id:
-                log.warn("job_id %s not found in jobs_by_id %s" % (job_id, jobs_by_id))
-                raise AssertionError("Attempt to create workflow with job not connected to current history")
-
-            job = jobs_by_id[job_id]
-            print "Doing job_id", job_id, ":", job
-            tool_inputs, associations = step_inputs(trans, job)
-
-            step = model.WorkflowStep()
-            step.type = 'tool'
-            step.tool_id = job.tool_id
-            step.tool_inputs = tool_inputs
-            print "job.tool_id:", job.tool_id
-            print "tool_inputs for tool_id", job.tool_id, ":", tool_inputs
-            # The associations object contains the hda's hid and data input port name
-            print "associations:", associations
-
-            # List tool node outputs
-            tool_node_outputs = []
-            print "job tool_id:", job.tool_id
-            job_outputs = job.output_datasets
-            print "job_outputs", job_outputs
-            for job_output in job_outputs:
-                print "job_output.name:", job_output.name
-                print "job_output.dataset:", job_output.dataset
-                tool_node_outputs.append(job_output.name)
-
-            # Create tool nodes for cytoscape workflow output
-            tool_node_id = "n" + str(input_count)
-            toolnode = ToolNode(tool_node_id,
-                                job.tool_id,
-                                job.tool_id,
-                                "tool",
-                                str(job_id),
-                                tool_inputs,
-                                tool_inputs,
-                                tool_node_outputs)
-            cy_workflow.nodes.append(toolnode)
-            steps_by_node_id[tool_node_id] = step
-            input_count += 1
-
-            # NOTE: We shouldn't need to do two passes here since only
-            #       an earlier job can be used as an input to a later
-            #       job.
-            print "#######################"
-            print "#### Creating edge ####"
-            print "#######################"
-            print "steps_by_node_id:", steps_by_node_id
-            conn = None
-
-            print "associations:", associations
-            print "hid_to_output_pair:", hid_to_output_pair
-            # print "other_hid", other_hid
-            for other_hid, input_name in associations:
-                if job in summary.implicit_map_jobs:
-                    an_implicit_output_collection = jobs[ job ][ 0 ][ 1 ]
-                    input_collection = an_implicit_output_collection.find_implicit_input_collection( input_name )
-                    if input_collection:
-                        other_hid = input_collection.hid
-                    else:
-                        log.info("Cannot find implicit input collection for %s" % input_name)
-
-                if other_hid in hid_to_output_pair:
-                    other_step, other_name = hid_to_output_pair[ other_hid ]
-                    conn = model.WorkflowStepConnection()
-                    conn.input_step = step  # The current step
-                    conn.input_name = input_name
-                    # Should always be connected to an earlier step
-                    conn.output_step = other_step
-                    print "Source step:", conn.output_step
-                    print "Source step dict:", other_step.__dict__
-                    conn.output_name = other_name
-                    print "Source step output port name:", conn.output_name
-            steps.append(step)
-            steps_by_job_id[job_id] = step
-
-            # Store created dataset hids
-            for assoc in (job.output_datasets + job.output_dataset_collection_instances):
-                assoc_name = assoc.name
-                if ToolOutputCollectionPart.is_named_collection_part_name( assoc_name ):
-                    continue
-                if job in summary.implicit_map_jobs:
-                    hid = None
-                    for implicit_pair in jobs[ job ]:
-                        query_assoc_name, dataset_collection = implicit_pair
-                        if query_assoc_name == assoc_name:
-                            hid = dataset_collection.hid
-                    if hid is None:
-                        template = "Failed to find matching implicit job - job is %s, jobs are %s, assoc_name is %s."
-                        message = template % ( job.id, jobs, assoc.name )
-                        log.warn( message )
-                        raise Exception("Failed to extract job.")
+        for job in jobs:
+            # Create data nodes
+            if job.tool_id == 'upload1':
+                print "#### Data upload job ####"
+                dataset_id = 0
+                # Need to catch this exception check!
+                if not job.input_datasets:
+                    print "No input datasets!!"
                 else:
-                    if hasattr( assoc, "dataset" ):
-                        hid = assoc.dataset.hid
-                    else:
-                        hid = assoc.dataset_collection_instance.hid
-                hid_to_output_pair[ hid ] = ( step, assoc.name )
+                    for input_dataset in job.input_datasets:
+                        print "input_dataset", input_dataset
 
-            # Find source node id for edge by matching the input step
-            # to steps in the workflow steps list
-            source_node_id = None
-            # for node_id, theStep in steps_by_node_id.iteritems():
-            #     if conn.output_step == theStep:
-            #         source_node_id = node_id
-            #         print "Matching node_id", node_id
-            #         print "Matching step", theStep
+                tool_outputs = []
+                for output_dataset in job.output_datasets:
+                    tool_outputs.append(output_dataset.name)
+                    dataset_id = output_dataset.dataset.dataset.id
+                data_node_id = "n" + str(input_count)
+                datanode = DataNode(data_node_id,
+                                    dataset_id,
+                                    "data_input",
+                                    "data_input",
+                                    0,
+                                    tool_outputs)
+                cy_workflow.nodes.append(datanode)
+                # Add entry into job_id:node_id dictionary
+                job_id_node_id_dict[job.id] = data_node_id
+                input_count += 1
+            else:
+                # Create tool nodes
+                print "#### Creating tool node ####"
+                tool = self.app.toolbox.get_tool( job.tool_id )
+                # Parse tool inputs and outputs into an array
+                tool_inputs = []
+                for tool_input in tool.inputs:
+                    tool_inputs.append(tool_input)
+                tool_outputs = []
+                for tool_output in tool.outputs:
+                    tool_outputs.append(tool_output)
+                tool_node_id = "n" + str(input_count)
+                toolnode = ToolNode(tool_node_id,
+                                    job.tool_id,
+                                    tool.name,
+                                    "tool",
+                                    job.id,
+                                    job.parameters,
+                                    tool_inputs,
+                                    tool_outputs)
+                cy_workflow.nodes.append(toolnode)
+                input_count += 1
 
-            print "job tool_id:", job.tool_id
-            job_inputs = job.input_datasets
-            print "job_inputs", job_inputs
-            for job_input in job_inputs:
-                print "job_input.name:", job_input.name
-                print "job_input.dataset:", job_input.dataset
+                # Add entry into job_id:node_id dictionary
+                job_id_node_id_dict[job.id] = tool_node_id
 
-            edge_dataset_id = None
-            for job_input in job_inputs:
-                print job_input.name
-                hda = job_input.dataset
-                print "edge_dataset_id: ", hda.dataset_id
-                edge_dataset_id = hda.dataset_id
+                # Create edges
+                if job.input_datasets:
+                    for input_dataset in job.input_datasets:
+                        print "input_dataset", input_dataset
+                        print "input dataset name:", input_dataset.name
+                        print "input dataset id:", input_dataset.dataset.dataset.id
+                        # Get job which has an output for the above dataset id
+                        source_job_id = output_dataset_id_job_id_dict[input_dataset.dataset.dataset.id]
+                        # Get output dataset name for the source_job_id
+                        source_job_output_dataset_name = ""
+                        for the_job in jobs:
+                            if the_job.id == source_job_id:
+                                print "the_job.output_datasets:", the_job.output_datasets
+                                for the_job_output_dataset in the_job.output_datasets:
+                                    print "the_job_output_dataset_name:", the_job_output_dataset.name
+                                    source_job_output_dataset_name = the_job_output_dataset.name
 
-            edge = Edge('e' + str(edge_count),
-                        source_node_id,
-                        "output_name",
-                        tool_node_id,
-                        "input_name",
-                        edge_dataset_id)
-            cy_workflow.edges.append(edge)
-            edge_count += 1
+                        print "source_job_id:", source_job_id
+                        # Get node id for above source job id
+                        source_node_id = job_id_node_id_dict[source_job_id]
+                        print "source_node_id:", source_node_id
+                        # Create edge
+                        edge = Edge('e' + str(edge_count),
+                                source_node_id,
+                                source_job_output_dataset_name,
+                                tool_node_id,
+                                input_dataset.name,
+                                input_dataset.dataset.dataset.id)
+                        cy_workflow.edges.append(edge)
+                        edge_count += 1
 
+        cy_workflow = cy_workflow.to_json()
         return cy_workflow
 
 
