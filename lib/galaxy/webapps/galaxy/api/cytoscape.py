@@ -56,8 +56,9 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         edge_count = 0
         step_id_node_id_dict = {}
         workflow_id = self.decode_id( workflow_id )
-        query = trans.sa_session.query( trans.app.model.Workflow )
-        workflow = query.get( workflow_id )
+        query = trans.sa_session.query( trans.app.model.StoredWorkflow )
+        stored_workflow = query.get( workflow_id )
+        workflow = stored_workflow.latest_workflow
         if workflow is None:
             raise exceptions.ObjectNotFound( "No such workflow found." )
         for step in workflow.steps:
