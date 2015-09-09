@@ -394,6 +394,8 @@ class InstallToolDependencyManager( object ):
                                                 # tag set that defines the recipe to install and compile from source.
                                                 log.debug( 'Proceeding with install and compile recipe for tool dependency %s.' %
                                                            str( tool_dependency.name ) )
+                                                # Reset above error to installing
+                                                tool_dependency.status = self.install_model.ToolDependency.installation_status.INSTALLING
                                                 tool_dependency = self.install_via_fabric( tool_shed_repository,
                                                                                            tool_dependency,
                                                                                            install_dir,
@@ -795,7 +797,7 @@ class InstallRepositoryManager( object ):
                 shed_tool_conf=shed_tool_conf,
                 tool_path=tool_path,
                 tool_panel_section_keys=tool_panel_section_keys,
-                repo_info_dicts=repo_info_dicts,
+                repo_info_dicts=filtered_repo_info_dicts,
                 install_tool_dependencies=install_tool_dependencies,
             )
             return self.install_repositories(tsr_ids, decoded_kwd, reinstalling=False)

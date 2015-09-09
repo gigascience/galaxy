@@ -562,7 +562,7 @@ class HistoryController( BaseUIController, SharableMixin, UsesAnnotations, UsesI
         hda_dictionaries   = history_data[ 'contents' ]
 
         jobs = ( trans.sa_session.query( trans.app.model.Job )
-            .filter( trans.app.model.Job.user == trans.user )
+            .filter( trans.app.model.Job.user == history_to_view.user )
             .filter( trans.app.model.Job.history_id == unencoded_history_id ) ).all()
         jobs = map( lambda j: self.encode_all_ids( trans, j.to_dict( 'element' ), True ), jobs )
 
@@ -899,7 +899,7 @@ class HistoryController( BaseUIController, SharableMixin, UsesAnnotations, UsesI
         for history_id in ids:
             history_id = self.decode_id( history_id )
             history = self.history_manager.get_owned( history_id, trans.user, current_history=trans.history )
-            histories.append(  )
+            histories.append( history )
         return histories
 
     def _get_users( self, trans, user, emails_or_ids ):

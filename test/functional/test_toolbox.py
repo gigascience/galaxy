@@ -44,6 +44,7 @@ class ToolTestCase( TwillTestCase ):
         job_stdio = None
         job_output_exceptions = None
         tool_execution_exception = None
+        expected_failure_occurred = False
         try:
             try:
                 tool_response = galaxy_interactor.run_tool( testdef, test_history )
@@ -52,22 +53,26 @@ class ToolTestCase( TwillTestCase ):
             except RunToolException as e:
                 tool_inputs = e.inputs
                 tool_execution_exception = e
-                raise e
+                if not testdef.expect_failure:
+                    raise e
+                else:
+                    expected_failure_occurred = True
             except Exception as e:
                 tool_execution_exception = e
                 raise e
 
-            self.assertTrue( data_list or data_collection_list )
+            if not expected_failure_occurred:
+                self.assertTrue( data_list or data_collection_list )
 
-            try:
-                job_stdio = self._verify_outputs( testdef, test_history, jobs, shed_tool_id, data_list, data_collection_list, galaxy_interactor )
-            except JobOutputsError as e:
-                job_stdio = e.job_stdio
-                job_output_exceptions = e.output_exceptions
-                raise e
-            except Exception as e:
-                job_output_exceptions = [e]
-                raise e
+                try:
+                    job_stdio = self._verify_outputs( testdef, test_history, jobs, shed_tool_id, data_list, data_collection_list, galaxy_interactor )
+                except JobOutputsError as e:
+                    job_stdio = e.job_stdio
+                    job_output_exceptions = e.output_exceptions
+                    raise e
+                except Exception as e:
+                    job_output_exceptions = [e]
+                    raise e
         finally:
             job_data = {}
             if tool_inputs is not None:
@@ -263,13 +268,18 @@ def build_tests( app=None, testing_shed_tools=False, master_api_key=None, user_a
             baseclasses = ( ToolTestCase, )
             namespace = dict()
             for j, testdef in enumerate( tool.tests ):
+                test_function_name = 'test_tool_%06d' % j
+
                 def make_test_method( td ):
                     def test_tool( self ):
                         self.do_it( td )
+                    test_tool.__name__ = test_function_name
+
                     return test_tool
+
                 test_method = make_test_method( testdef )
                 test_method.__doc__ = "%s ( %s ) > %s" % ( tool.name, tool.id, testdef.name )
-                namespace[ 'test_tool_%06d' % j ] = test_method
+                namespace[ test_function_name ] = test_method
                 namespace[ 'shed_tool_id' ] = shed_tool_id
                 namespace[ 'master_api_key' ] = master_api_key
                 namespace[ 'user_api_key' ] = user_api_key

@@ -82,7 +82,6 @@ class HistoryManager( sharable.SharableModelManager, deletable.PurgableManagerMi
         Purge this history and all HDAs, Collections, and Datasets inside this history.
         """
         self.hda_manager.dataset_manager.error_unless_dataset_purge_allowed()
-
         # First purge all the datasets
         for hda in history.datasets:
             if not hda.purged:
@@ -137,6 +136,9 @@ class HistoryManager( sharable.SharableModelManager, deletable.PurgableManagerMi
                 if isinstance( content, model.HistoryDatasetAssociation ):
                     contents_dict = hda_serializer.serialize_to_view( content, view='detailed',
                         user=trans.user, trans=trans )
+                    hda_annotation = hda_serializer.serialize_annotation( content, 'annotation', user=history.user )
+                    contents_dict[ 'annotation' ] = hda_annotation
+
                 elif isinstance( content, model.HistoryDatasetCollectionAssociation ):
                     try:
                         service = self.app.dataset_collections_service
