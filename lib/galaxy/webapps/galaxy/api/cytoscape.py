@@ -1,5 +1,5 @@
 """
-API operations to obtain cytoscape output.
+API operations to obtain cytoscape output from workflows and histories.
 
 """
 
@@ -132,7 +132,7 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                 print "job:", job.to_dict()
                 jobs.append(job)
 
-        # Create cytoscape data
+        # Create cytoscape workflow object
         cy_workflow = Workflow(history_id)
 
         # Dictionary to hold job_id:node_id
@@ -142,107 +142,90 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         for job in jobs:
             for output_dataset in job.output_datasets:
                 output_dataset_id_job_id_dict[output_dataset.dataset.dataset.id] = job.id
-        print "job_id_output_dataset_id_dict", output_dataset_id_job_id_dict
-        # Array of dataset ids which are inputs
-        input_dataset_ids = []
+        print "output_dataset_id_job_id_dict", output_dataset_id_job_id_dict
+
+        # Array of dataset ids which are outputted by tools/jobs
+        output_dataset_ids_from_tools = []
+        for job in jobs:
+            for output_dataset in job.output_datasets:
+                print "Job id: ", job.id, "is", job.tool_id, "and has output dataset id:", output_dataset.dataset.dataset.id
+                output_dataset_ids_from_tools.append(output_dataset.dataset.dataset.id)
+        print "output_dataset_ids_from_tools:", output_dataset_ids_from_tools
+
+        # Array of dataset ids which are inputs for tools/jobs
+        input_dataset_ids_consumed_tools = []
         for job in jobs:
             for input_dataset in job.input_datasets:
-                input_dataset_ids.append(input_dataset.dataset.dataset.id)
-        print "input_dataset_ids:", input_dataset_ids
+                print "Job id: ", job.id, "is", job.tool_id, "and has input dataset id:", input_dataset.dataset.dataset.id
+                input_dataset_ids_consumed_tools.append(input_dataset.dataset.dataset.id)
+        print "input_dataset_ids:", input_dataset_ids_consumed_tools
 
+        workflow_input_dataset_ids_node_id_dict = {}
+        workflow_output_dataset_ids_node_id_dict = {}
 
         # Create data and tool nodes
         input_count = 0
         edge_count = 0
+        print "##########################################"
+        print "# Create workflow input data nodes first #"
+        print "##########################################"
         for job in jobs:
-            # Create data nodes
-            if job.tool_id == 'upload1':
-                print "#### Data upload job ####"
-                dataset_id = 0
-                # Need to catch this exception check!
-                if not job.input_datasets:
-                    print "No input datasets!!"
-                else:
-                    for input_dataset in job.input_datasets:
-                        print "input_dataset", input_dataset
+            print "job.tool_id: ", job.tool_id
+            # Create any data input nodes for job
+            for input_dataset in job.input_datasets:
+                input_dataset_id = input_dataset.dataset.dataset.id
+                # Create any input data nodes
+                if input_dataset.dataset.dataset.id not in output_dataset_ids_from_tools:
+                    print "#### Creating input data node ####"
+                    data_node_id = "n" + str(input_count)
+                    datanode = DataNode(data_node_id,
+                                        input_dataset_id,
+                                        "data_input",
+                                        "data_input",
+                                        0,
+                                        "output")
+                    cy_workflow.nodes.append(datanode)
+                    # Add entry into workflow input dataset_ids
+                    workflow_input_dataset_ids_node_id_dict[input_dataset_id] = data_node_id
+                    # workflow_input_dataset_ids.append(input_dataset_id)
+                    input_count += 1
 
-                tool_outputs = []
-                for output_dataset in job.output_datasets:
-                    tool_outputs.append(output_dataset.name)
-                    dataset_id = output_dataset.dataset.dataset.id
-                data_node_id = "n" + str(input_count)
-                datanode = DataNode(data_node_id,
-                                    dataset_id,
-                                    "data_input",
-                                    "data_input",
-                                    0,
-                                    tool_outputs)
-                cy_workflow.nodes.append(datanode)
-                # Add entry into job_id:node_id dictionary
-                job_id_node_id_dict[job.id] = data_node_id
-                input_count += 1
-            else:
-                # Create tool nodes
-                print "#### Creating tool node ####"
-                tool = self.app.toolbox.get_tool( job.tool_id )
-                # Parse tool inputs and outputs into an array
-                tool_inputs = []
-                for tool_input in tool.inputs:
-                    tool_inputs.append(tool_input)
-                tool_outputs = []
-                for tool_output in tool.outputs:
-                    tool_outputs.append(tool_output)
-                tool_node_id = "n" + str(input_count)
-                toolnode = ToolNode(tool_node_id,
-                                    job.tool_id,
-                                    tool.name,
-                                    "tool",
-                                    job.id,
-                                    job.parameters,
-                                    tool_inputs,
-                                    tool_outputs)
-                cy_workflow.nodes.append(toolnode)
-                input_count += 1
+        print "#####################"
+        print "# Create tool nodes #"
+        print "#####################"
+        for job in jobs:
+            print "job.tool_id: ", job.tool_id
+            # Create tool node
+            print "#### Creating tool node ####"
+            tool = self.app.toolbox.get_tool( job.tool_id )
+            print "tool.name:", tool.name
+            # Parse tool inputs and outputs into an array
+            tool_inputs = []
+            for tool_input in tool.inputs:
+                tool_inputs.append(tool_input)
+            tool_outputs = []
+            for tool_output in tool.outputs:
+                tool_outputs.append(tool_output)
+            tool_node_id = "n" + str(input_count)
+            toolnode = ToolNode(tool_node_id,
+                                job.tool_id,
+                                tool.name,
+                                "tool",
+                                job.id,
+                                job.parameters,
+                                tool_inputs,
+                                tool_outputs)
+            cy_workflow.nodes.append(toolnode)
+            input_count += 1
+            # Add entry into job_id:node_id dictionary
+            job_id_node_id_dict[job.id] = tool_node_id
 
-                # Add entry into job_id:node_id dictionary
-                job_id_node_id_dict[job.id] = tool_node_id
-
-                # Create edges
-                if job.input_datasets:
-                    for input_dataset in job.input_datasets:
-                        print "input_dataset", input_dataset
-                        print "input dataset name:", input_dataset.name
-                        print "input dataset id:", input_dataset.dataset.dataset.id
-                        # Get job which has an output for the above dataset id
-                        source_job_id = output_dataset_id_job_id_dict[input_dataset.dataset.dataset.id]
-                        # Get output dataset name for the source_job_id
-                        source_job_output_dataset_name = ""
-                        for the_job in jobs:
-                            if the_job.id == source_job_id:
-                                print "the_job.output_datasets:", the_job.output_datasets
-                                for the_job_output_dataset in the_job.output_datasets:
-                                    print "the_job_output_dataset_name:", the_job_output_dataset.name
-                                    source_job_output_dataset_name = the_job_output_dataset.name
-
-                        print "source_job_id:", source_job_id
-                        # Get node id for above source job id
-                        source_node_id = job_id_node_id_dict[source_job_id]
-                        print "source_node_id:", source_node_id
-                        # Create edge
-                        edge = Edge('e' + str(edge_count),
-                                source_node_id,
-                                source_job_output_dataset_name,
-                                tool_node_id,
-                                input_dataset.name,
-                                input_dataset.dataset.dataset.id)
-                        cy_workflow.edges.append(edge)
-                        edge_count += 1
-
-        # Create workflow output nodes
-        # Find all jobs with output datasets that do not act as input
+        print "#####################################"
+        print "# Create workflow output data nodes #"
+        print "#####################################"
         for job in jobs:
             for output_dataset in job.output_datasets:
-                if output_dataset.dataset.dataset.id not in input_dataset_ids:
+                if output_dataset.dataset.dataset.id not in input_dataset_ids_consumed_tools:
                     print "Dataset id:", output_dataset.dataset.dataset.id, "does not act as an input dataset!!!"
                     # These output datasets of these jobs are output data nodes
                     print "#### Workflow output node ####"
@@ -254,24 +237,93 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                                         "input_port_name",
                                         None)
                     cy_workflow.nodes.append(datanode)
+                    # Add entry into input_dataset_ids
+                    workflow_output_dataset_ids_node_id_dict[output_dataset.dataset.dataset.id] = output_data_node_id
                     input_count += 1
 
-                    # Create edge
-                    # Get job which has an output for the above dataset id
-                    source_job_id = output_dataset_id_job_id_dict[output_dataset.dataset.dataset.id]
-                    print "source_job_id:", source_job_id
-                    # Get node id for above source job id
-                    source_node_id = job_id_node_id_dict[source_job_id]
-                    print "source_node_id:", source_node_id
-                    # Create edge
-                    edge = Edge('e' + str(edge_count),
-                            source_node_id,
-                            output_dataset.name,
-                            output_data_node_id,
-                            input_dataset.name,
-                            output_dataset.dataset.dataset.id)
-                    cy_workflow.edges.append(edge)
-                    edge_count += 1
+        print "workflow_input_dataset_ids_node_id_dict:", workflow_input_dataset_ids_node_id_dict
+        print "workflow_output_dataset_ids_node_id_dict:", workflow_output_dataset_ids_node_id_dict
+        print "job_id_node_id_dict:", job_id_node_id_dict
+
+        print "############################################################"
+        print "# Create edges for workflow input data nodes to tool nodes #"
+        print "############################################################"
+        for job in jobs:
+            if job.input_datasets:
+                for input_dataset in job.input_datasets:
+                    print "input_dataset", input_dataset
+                    print "input dataset name:", input_dataset.name
+                    print "input dataset id:", input_dataset.dataset.dataset.id
+                    input_dataset_id = input_dataset.dataset.dataset.id
+                    # Check that dataset id is an input dataset
+                    if input_dataset_id in workflow_input_dataset_ids_node_id_dict.keys():
+                        # Get the node id for this job
+                        tool_node_id = job_id_node_id_dict[job.id]
+                        source_node_id = workflow_input_dataset_ids_node_id_dict[input_dataset_id]
+                        target_node_id = job_id_node_id_dict[job.id]
+                        # Create edge
+                        edge = Edge('e' + str(edge_count),
+                                source_node_id,
+                                "output",
+                                target_node_id,
+                                input_dataset.name,
+                                input_dataset_id)
+                        cy_workflow.edges.append(edge)
+                        edge_count += 1
+
+        print "###################################"
+        print "# Create edges between tool nodes #"
+        print "###################################"
+        for job in jobs:
+            print "Doing job_id:", job.id
+            if job.input_datasets:
+                for input_dataset in job.input_datasets:
+                    print "input_dataset", input_dataset
+                    print "input dataset name:", input_dataset.name
+                    print "input dataset id:", input_dataset.dataset.dataset.id
+                    input_dataset_id = input_dataset.dataset.dataset.id
+                    # Check that dataset id is not a workflow input dataset
+                    if input_dataset_id not in workflow_input_dataset_ids_node_id_dict.keys():
+                        # Get the job id that created the output_dataset_id
+                        previous_job_id = output_dataset_id_job_id_dict[input_dataset_id]
+                        print "job_id:", previous_job_id, "created dataset_id:", input_dataset_id
+                        # Get the node id for the job id that created the output_dataset_id
+                        source_node_id = job_id_node_id_dict[previous_job_id]
+                        target_node_id = job_id_node_id_dict[job.id]
+                        # Create edge
+                        edge = Edge('e' + str(edge_count),
+                                source_node_id,
+                                "output",
+                                target_node_id,
+                                input_dataset.name,
+                                input_dataset_id)
+                        cy_workflow.edges.append(edge)
+                        edge_count += 1
+
+        print "#############################################################"
+        print "# Create edges for tool nodes to workflow output data nodes #"
+        print "#############################################################"
+        for job in jobs:
+            if job.output_datasets:
+                for output_dataset in job.output_datasets:
+                    print "output_dataset", output_dataset
+                    print "output dataset name:", output_dataset.name
+                    print "output dataset id:", output_dataset.dataset.dataset.id
+                    output_dataset_id = output_dataset.dataset.dataset.id
+                    # Check that dataset id is a workflow output dataset
+                    if output_dataset_id in workflow_output_dataset_ids_node_id_dict.keys():
+                        # Get the node id for this job
+                        source_node_id = job_id_node_id_dict[job.id]
+                        target_node_id = workflow_output_dataset_ids_node_id_dict[output_dataset_id]
+                        # Create edge
+                        edge = Edge('e' + str(edge_count),
+                                source_node_id,
+                                "output",
+                                target_node_id,
+                                output_dataset.name,
+                                output_dataset_id)
+                        cy_workflow.edges.append(edge)
+                        edge_count += 1
 
         cy_workflow = cy_workflow.to_json()
         return cy_workflow
