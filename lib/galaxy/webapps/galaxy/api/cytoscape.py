@@ -146,6 +146,14 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
 
         # Array of dataset ids which are outputted by tools/jobs
         output_dataset_ids_from_tools = []
+        # Array to hold input dataset ids
+        # This is required to keep track of them to ensure they are not
+        # duplicated
+        input_dataset_ids = []
+        output_dataset_ids = []
+        wf_job_id_tool_ids = []
+        wf_edges = []
+
         for job in jobs:
             for output_dataset in job.output_datasets:
                 print "Job id: ", job.id, "is", job.tool_id, "and has output dataset id:", output_dataset.dataset.dataset.id
@@ -175,7 +183,8 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
             for input_dataset in job.input_datasets:
                 input_dataset_id = input_dataset.dataset.dataset.id
                 # Create any input data nodes
-                if input_dataset.dataset.dataset.id not in output_dataset_ids_from_tools:
+                if input_dataset.dataset.dataset.id not in output_dataset_ids_from_tools and input_dataset.dataset.dataset.id not in input_dataset_ids:
+                
                     print "#### Creating input data node ####"
                     data_node_id = "n" + str(input_count)
                     datanode = DataNode(data_node_id,
@@ -188,6 +197,8 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                     # Add entry into workflow input dataset_ids
                     workflow_input_dataset_ids_node_id_dict[input_dataset_id] = data_node_id
                     # workflow_input_dataset_ids.append(input_dataset_id)
+                    # Add entry to input dataset ids array for tracking
+                    input_dataset_ids.append(input_dataset_id)
                     input_count += 1
 
         print "#####################"
@@ -195,19 +206,21 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
         print "#####################"
         for job in jobs:
             print "job.tool_id: ", job.tool_id
-            # Create tool node
-            print "#### Creating tool node ####"
-            tool = self.app.toolbox.get_tool( job.tool_id )
-            print "tool.name:", tool.name
-            # Parse tool inputs and outputs into an array
-            tool_inputs = []
-            for tool_input in tool.inputs:
-                tool_inputs.append(tool_input)
-            tool_outputs = []
-            for tool_output in tool.outputs:
-                tool_outputs.append(tool_output)
-            tool_node_id = "n" + str(input_count)
-            toolnode = ToolNode(tool_node_id,
+            job_tool_identifer = job.id, ":", job.tool_id
+            if job_tool_identifer not in wf_job_id_tool_ids:
+                # Create tool node
+                print "#### Creating tool node ####"
+                tool = self.app.toolbox.get_tool( job.tool_id )
+                print "tool.name:", tool.name
+                # Parse tool inputs and outputs into an array
+                tool_inputs = []
+                for tool_input in tool.inputs:
+                    tool_inputs.append(tool_input)
+                tool_outputs = []
+                for tool_output in tool.outputs:
+                    tool_outputs.append(tool_output)
+                tool_node_id = "n" + str(input_count)
+                toolnode = ToolNode(tool_node_id,
                                 job.tool_id,
                                 tool.name,
                                 "tool",
@@ -215,17 +228,19 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                                 job.parameters,
                                 tool_inputs,
                                 tool_outputs)
-            cy_workflow.nodes.append(toolnode)
-            input_count += 1
-            # Add entry into job_id:node_id dictionary
-            job_id_node_id_dict[job.id] = tool_node_id
+                cy_workflow.nodes.append(toolnode)
+                input_count += 1
+                # Add entry into job_id:node_id dictionary
+                job_id_node_id_dict[job.id] = tool_node_id
+                # Add entry into wf_job_id_tool_ids
+                wf_job_id_tool_ids.append(job_tool_identifer)
 
         print "#####################################"
         print "# Create workflow output data nodes #"
         print "#####################################"
         for job in jobs:
             for output_dataset in job.output_datasets:
-                if output_dataset.dataset.dataset.id not in input_dataset_ids_consumed_tools:
+                if output_dataset.dataset.dataset.id not in input_dataset_ids_consumed_tools and output_dataset.dataset.dataset.id not in output_dataset_ids:
                     print "Dataset id:", output_dataset.dataset.dataset.id, "does not act as an input dataset!!!"
                     # These output datasets of these jobs are output data nodes
                     print "#### Workflow output node ####"
@@ -239,6 +254,8 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                     cy_workflow.nodes.append(datanode)
                     # Add entry into input_dataset_ids
                     workflow_output_dataset_ids_node_id_dict[output_dataset.dataset.dataset.id] = output_data_node_id
+                    # Add entry to output dataset ids array for tracking
+                    output_dataset_ids.append(output_dataset.dataset.dataset.id)
                     input_count += 1
 
         print "workflow_input_dataset_ids_node_id_dict:", workflow_input_dataset_ids_node_id_dict
@@ -261,15 +278,19 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                         tool_node_id = job_id_node_id_dict[job.id]
                         source_node_id = workflow_input_dataset_ids_node_id_dict[input_dataset_id]
                         target_node_id = job_id_node_id_dict[job.id]
-                        # Create edge
-                        edge = Edge('e' + str(edge_count),
+                        edge_key = source_node_id, ":", target_node_id
+                        print "edge_key:", edge_key
+                        if edge_key not in wf_edges:
+                            # Create edge
+                            edge = Edge('e' + str(edge_count),
                                 source_node_id,
                                 "output",
                                 target_node_id,
                                 input_dataset.name,
                                 input_dataset_id)
-                        cy_workflow.edges.append(edge)
-                        edge_count += 1
+                            cy_workflow.edges.append(edge)
+                            edge_count += 1
+                            wf_edges.append(edge_key)
 
         print "###################################"
         print "# Create edges between tool nodes #"
@@ -290,15 +311,19 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                         # Get the node id for the job id that created the output_dataset_id
                         source_node_id = job_id_node_id_dict[previous_job_id]
                         target_node_id = job_id_node_id_dict[job.id]
-                        # Create edge
-                        edge = Edge('e' + str(edge_count),
+                        edge_key = source_node_id, ":", target_node_id
+                        print "edge_key:", edge_key
+                        if edge_key not in wf_edges:
+                            # Create edge
+                            edge = Edge('e' + str(edge_count),
                                 source_node_id,
                                 "output",
                                 target_node_id,
                                 input_dataset.name,
                                 input_dataset_id)
-                        cy_workflow.edges.append(edge)
-                        edge_count += 1
+                            cy_workflow.edges.append(edge)
+                            edge_count += 1
+                            wf_edges.append(edge_key)
 
         print "#############################################################"
         print "# Create edges for tool nodes to workflow output data nodes #"
@@ -315,15 +340,19 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
                         # Get the node id for this job
                         source_node_id = job_id_node_id_dict[job.id]
                         target_node_id = workflow_output_dataset_ids_node_id_dict[output_dataset_id]
-                        # Create edge
-                        edge = Edge('e' + str(edge_count),
+                        edge_key = source_node_id, ":", target_node_id
+                        print "edge_key:", edge_key
+                        if edge_key not in wf_edges:
+                            # Create edge
+                            edge = Edge('e' + str(edge_count),
                                 source_node_id,
                                 "output",
                                 target_node_id,
                                 output_dataset.name,
                                 output_dataset_id)
-                        cy_workflow.edges.append(edge)
-                        edge_count += 1
+                            cy_workflow.edges.append(edge)
+                            edge_count += 1
+                            wf_edges.append(edge_key)
 
         cy_workflow = cy_workflow.to_json()
         return cy_workflow
