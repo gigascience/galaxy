@@ -393,6 +393,7 @@ class Workflow:
                 node_data = collections.OrderedDict([('id', node.id),
                                                      ('name', node.name),
                                                      ('job_id', node.job_id),
+                                                     ('tool_id', node.tool_id),
                                                      # ("params", node.params),
                                                      ("color", "#DFF0D8"),
                                                      ("input_ports", node.input_ports),
