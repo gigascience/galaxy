@@ -183,6 +183,7 @@ class CytoscapeVisualizationsController(BaseAPIController, UsesTagsMixin, UsesSt
             for input_dataset in job.input_datasets:
                 input_dataset_id = input_dataset.dataset.dataset.id
                 # Create any input data nodes
+                # if input_dataset.dataset.dataset.id not in output_dataset_ids_from_tools:
                 if input_dataset.dataset.dataset.id not in output_dataset_ids_from_tools and input_dataset.dataset.dataset.id not in input_dataset_ids:
                 
                     print "#### Creating input data node ####"
@@ -380,7 +381,7 @@ class Workflow:
                 node_data = collections.OrderedDict([('id', node.id),
                                                      ('name', node.name),
                                                      ('dataset_id', str(node.dataset_id)),
-                                                     ('color', '#FCF8E3'),
+                                                     ('color', '#D9EDF7'),
                                                      ('output_ports', node.output_ports)])
             elif node.type == "data_output":
                 node_data = collections.OrderedDict([('id', node.id),
@@ -393,7 +394,7 @@ class Workflow:
                                                      ('name', node.name),
                                                      ('job_id', node.job_id),
                                                      # ("params", node.params),
-                                                     ("color", "#D9EDF7"),
+                                                     ("color", "#DFF0D8"),
                                                      ("input_ports", node.input_ports),
                                                      ("output_ports", node.output_ports)])
             nodes_dict.append({'data': node_data})
